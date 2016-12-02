@@ -147,8 +147,8 @@ put 'i' + 1 into 'i'
 endwhile
 
 DYNAMICS
-  write restart coordinates formatted file "{rst_file_out}"  
-  write sql name species1 file "{dms_out}"
+  write restart coordinates formatted file "{job_name}_0.rst"  
+  write sql name species1 file "{job_name}_0.dms"
 QUIT
 
 END
@@ -161,7 +161,7 @@ write file -
 
 CREATE
   build primary name species1 type auto read sqldb file -
-"{dms_in}"
+"{job_name}_@nm1@.dms"
 QUIT
 
 SETMODEL
@@ -182,15 +182,8 @@ QUIT
 
 if @n@ eq 1
 DYNAMICS
-  read restart coordinates formatted file "{job_name}_@nm1@.rst"
   input target temperature @temperature@
   input cntl initialize temperature at @temperature@
-QUIT
-endif
-
-if @n@ gt 1
-DYNAMICS
-  read restart coordinates and velocities formatted file "{job_name}_@nm1@.rst"
 QUIT
 endif
 
@@ -382,9 +375,10 @@ $IMPACT_EXEC/main1m $1
             extfiles = required_files
         else:
             extfiles += ",%s" % required_files
-        restart_file = "%s_0.rst" % self.jobname
+        rst_file = "%s_0.rst" % self.jobname
+        dms_file = "%s_0.dms" % self.jobname
         input_file = "%s.inp" % self.jobname
-        extfiles = extfiles + ",%s,%s" % (restart_file,input_file)
+        extfiles = extfiles + ",%s,%s,%s" % (rst_file,dms_file,input_file)
         extfiles += ",%s" % (self.idxfile)
         input += "ENGINE_INPUT_EXTFILES = '%s'\n" % extfiles
         
@@ -528,17 +522,12 @@ $IMPACT_EXEC/main1m $1
         impact_input_file =   self.jobname + '_mintherm' + '.inp'
         impact_output_file =  self.jobname + '_mintherm' + '.out'
         impact_jobtitle =     self.jobname + '_mintherm'
-        out_restart_file =    self.jobname + '_0' + '.rst'
-        self.mintherm_out_restart_file = out_restart_file 
-
-        out_structure_file =  self.jobname + '_mintherm' + '.dms'
 
         input = self.input_mintherm.format(
+            job_name = self.jobname,
             out_file = impact_output_file, title = impact_jobtitle,
             dms_in = self.idxfile, 
-            temperature = temperature,
-            rst_file_out = out_restart_file,
-            dms_out =  out_structure_file)
+            temperature = temperature)
 
         f = open(impact_input_file, "w")
         f.write(input)
@@ -568,9 +557,10 @@ $IMPACT_EXEC/main1m $1
             msg = "Number of printing frequency not specified"
             self.exit(msg)
 
+        input_dms_file = self.jobname + "_@nm1@" + ".dms"
+
         input = self.input_remd.format(
             job_name = self.jobname,
-            dms_in = self.idxfile, 
             rest_kf = rest_kf,
             nmd = nmd, nprnt = nprnt)
 

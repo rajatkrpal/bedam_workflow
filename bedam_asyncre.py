@@ -196,15 +196,8 @@ QUIT
 
 if @n@ eq 1
 DYNAMICS
-  read restart coordinates formatted file "{job_name}_@nm1@.rst"
   input target temperature @temperature@
   input cntl initialize temperature at @temperature@
-QUIT
-endif
-
-if @n@ gt 1
-DYNAMICS
-  read restart coordinates and velocities formatted file "{job_name}_@nm1@.rst"
 QUIT
 endif
 
@@ -427,7 +420,9 @@ $IMPACT_EXEC/main1m $1
         input_file = "%s.inp" % self.jobname
         extfiles = extfiles + ",%s,%s" % (restart_file,input_file)
         if re_type == 'BEDAMTEMPT':
-            extfiles += ",%s,%s,%s" % (self.recidxfile,self.ligidxfile,self.restraint_file)
+            rcptfile =  self.jobname + '_rcpt_0' + '.dms'
+            ligfile =  self.jobname + '_lig_0' + '.dms'
+            extfiles += ",%s,%s,%s" % (rcptfile,ligfile,self.restraint_file)
         input += "ENGINE_INPUT_EXTFILES = '%s'\n" % extfiles
         
         temperatures = self.keywords.get('TEMPERATURES')
@@ -497,6 +492,20 @@ $IMPACT_EXEC/main1m $1
         if subjobs_buffer_size is not None:
             input += "SUBJOBS_BUFFER_SIZE = '%f'\n" % float(subjobs_buffer_size)
 
+        #reservoir stuff
+        if self.keywords.get('RESERVOIR_DIR_RCPT'):
+            input += "RESERVOIR_DIR_RCPT = '%s'\n" % self.keywords.get('RESERVOIR_DIR_RCPT')
+            if not self.keywords.get('RESERVOIR_DIR_LIG'):
+                msg = "writeCntlFile: RESERVOIR_DIR_LIG is required"
+                self.exit(msg)
+            input += "RESERVOIR_DIR_LIG = '%s'\n" % self.keywords.get('RESERVOIR_DIR_LIG')
+            receptor_sql =  self.keywords.get('REST_LIGAND_CMRECSQL')
+            ligand_sql =  self.keywords.get('REST_LIGAND_CMLIGSQL')
+            tolcm =  self.keywords.get('REST_LIGAND_CMTOL')            
+            input += "REST_LIGAND_CMRECSQL = '%s'\n" % receptor_sql
+            input += "REST_LIGAND_CMLIGSQL = '%s'\n" % ligand_sql
+            input += "REST_LIGAND_CMTOL = '%f'\n" % float(tolcm)
+
         verbose = self.keywords.get('VERBOSE')
         if verbose is not None:
             input += "VERBOSE = '%s'\n" % verbose
@@ -549,8 +558,8 @@ $IMPACT_EXEC/main1m $1
         out_restart_file =    self.jobname + '_0' + '.rst'
         self.mintherm_out_restart_file = out_restart_file 
 
-        out_rcpt_structure_file =  self.jobname + '_rcpt_mintherm' + '.dms'
-        out_lig_structure_file =  self.jobname + '_lig_mintherm' + '.dms'
+        out_rcpt_structure_file =  self.jobname + '_rcpt_0' + '.dms'
+        out_lig_structure_file =  self.jobname + '_lig_0' + '.dms'
 
         input = self.input_mintherm.format(
             out_file = impact_output_file, title = impact_jobtitle,
@@ -621,9 +630,12 @@ $IMPACT_EXEC/main1m $1
             msg = "Number of printing frequency not specified"
             self.exit(msg)
 
+        rcptfile = self.jobname + "_rcpt_@nm1@.dms"
+        ligfile = self.jobname + "_lig_@nm1@.dms"
+
         input = self.input_remd.format(
             job_name = self.jobname,
-            dms_rcpt_in = self.recidxfile, dms_lig_in = self.ligidxfile,
+            dms_rcpt_in = rcptfile, dms_lig_in = ligfile,
             umax0 = umax, rest_kf = rest_kf,
             cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
             nmd_eq = nmd_eq, 

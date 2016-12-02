@@ -839,8 +839,8 @@ END
         impact_jobtitle =     self.jobname + '_mintherm'
         out_restart_file =    self.jobname + '_mintherm' + '.rst'
         self.mintherm_out_restart_file = out_restart_file 
-        out_rcpt_structure_file =  self.jobname + '_rcpt_mintherm' + '.dms'
-        out_lig_structure_file =  self.jobname + '_lig_mintherm' + '.dms'
+        out_rcpt_structure_file =  self.jobname + '_rcpt_0' + '.dms'
+        out_lig_structure_file =  self.jobname + '_lig_0' + '.dms'
         input = self.input_mintherm % (impact_output_file, impact_jobtitle, self.receptor_file_restr,self.ligand_file_restr, kfcm, d0cm, tolcm, self.restraint_file, temperature, out_restart_file, out_rcpt_structure_file,out_lig_structure_file)
         f = open(impact_input_file, "w")
         f.write(input)
