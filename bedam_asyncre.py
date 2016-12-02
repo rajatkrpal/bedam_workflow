@@ -321,10 +321,6 @@ $IMPACT_EXEC/main1m $1
         if not os.path.exists(ligand_file):
             msg = 'File does not exist: %s' % ligand_file
             self.exit(msg)
-        com_shrod_source =  self.keywords.get('COMMERCIAL_SCHRODINGER_EVN')
-        if not com_shrod_source:
-            msg = "bedam_prep: No commerical shrodinger source file specified in the input file"
-            self.exit(msg)
 
         print "Convert maegz files to cms files "
         desmond_builder_file = 'des_builder.msj'
@@ -334,10 +330,9 @@ $IMPACT_EXEC/main1m $1
         input =  self.input_cms
         f.write(input)
         f.close()
-        source_cmd = '. ' + com_shrod_source
         rcpt_cmd = '$SCHRODINGER/utilities/multisim' + ' -JOBNAME ' + self.jobname + ' -m ' + desmond_builder_file + ' ' + receptor_file + ' -o ' + rcpt_cms_file + ' -HOST localhost -maxjob 1 -WAIT'
         lig_cmd =  '$SCHRODINGER/utilities/multisim' + ' -JOBNAME ' + self.jobname + ' -m ' + desmond_builder_file + ' ' + ligand_file + ' -o ' + lig_cms_file + ' -HOST localhost -maxjob 1 -WAIT' 
-        cms_cmd = source_cmd + ";" + rcpt_cmd + ";" + lig_cmd 
+        cms_cmd = rcpt_cmd + ";" + lig_cmd 
         os.system(cms_cmd)
 
         print "Convert cms files to dms files"
@@ -345,22 +340,16 @@ $IMPACT_EXEC/main1m $1
         lig_dms_file = self.jobname + '_lig.dms'
 	rcpt_cmd = '$SCHRODINGER/run -FROM desmond mae2dms ' + rcpt_cms_file + ' ' + rcpt_dms_file
         lig_cmd = '$SCHRODINGER/run -FROM desmond mae2dms ' + lig_cms_file + ' ' + lig_dms_file
-        dms_cmd = source_cmd + ";" + rcpt_cmd + ";" + lig_cmd
+        dms_cmd = rcpt_cmd + ";" + lig_cmd
         os.system(dms_cmd)
 
         print "add agbnp parameters into dms files"
         agbnp_cmd =  "$SCHRODINGER/run add_agbnp2.py " + rcpt_dms_file
-        agbnp_cmd = source_cmd + ";" + agbnp_cmd
         os.system(agbnp_cmd)
         agbnp_cmd =  "$SCHRODINGER/run add_agbnp2.py " + lig_dms_file
-        agbnp_cmd = source_cmd + ";" + agbnp_cmd
         os.system(agbnp_cmd)
 
         print "add internal atom indexes into dms files"
-        acd_impact_source =  self.keywords.get('ACADEMIC_IMPACT_EVN')
-        if not acd_impact_source:
-            msg = "bedam_prep: No academic IMPACT source file specified in the input file"
-            self.exit(msg)
         impact_input_file =   self.jobname + '_idx' + '.inp'
         impact_output_file =  self.jobname + '_idx' + '.out'
         impact_jobtitle =     self.jobname + '_idx'
@@ -371,9 +360,14 @@ $IMPACT_EXEC/main1m $1
         f.write(input)
         f.close()
         idx_log_file =  self.jobname + '_idx' + '.log'
-        source_cmd = '. ' + acd_impact_source
+
+        impact_home = os.environ['IMPACTHOME']
+        os.environ['IMP_ROOT'] = impact_home
+        os.environ['IMPACT_EXEC'] = impact_home + "/bin/Linux-x86_64"
+        os.environ['LD_LIBRARY_PATH'] = "$LD_LIBRARY_PATH:" + impact_home + "/lib/Linux-x86_64"
+
+
         idx_cmd =  "$IMPACT_EXEC/main1m " + impact_input_file + " > " + idx_log_file + " 2>&1 "
-        idx_cmd =  source_cmd + ";" + idx_cmd
         os.system(idx_cmd)
         if not os.path.exists(out_receptor_file) or not os.path.exists(out_ligand_file):
             print " failed"
@@ -414,7 +408,7 @@ $IMPACT_EXEC/main1m $1
 
         if job_transport == 'SSH':
             multiarch = self.keywords.get('MULTIARCH')
-            if multiarch == 'YES':
+            if (multiarch == "YES" or multiarch =="yes"):
                 exec_directory =  self.keywords.get('EXEC_DIRECTORY')
                 if exec_directory is None:
                     msg = "writeCntlFile: multiarch ASyncRE requires EXEC_DIRECTORY"
@@ -653,7 +647,7 @@ $IMPACT_EXEC/main1m $1
 
         if job_transport == 'SSH':
             multiarch = self.keywords.get('MULTIARCH')
-            if multiarch is not None and multiarch == 'YES':
+            if multiarch is not None and multiarch == 'YES' or multiarch == 'yes':
                 input = self.input_runimpact_multiarch
             else:
                 subjob_cores = self.keywords.get('SUBJOB_CORES')
