@@ -231,6 +231,87 @@ QUIT
 END
 """
 
+
+	self.input_remd_boinc = """
+write file -
+"md.out" -
+      title -
+"md" *
+
+CREATE
+  build primary name species1 type auto read sqldb file -
+"md-in1.dms"
+  build primary name species2 type auto read sqldb file -
+"md-in2.dms"
+QUIT
+
+SETMODEL
+  setpotential
+    mmechanics nb12softcore umax {umax0} consolv agbnp2
+    weight constraints buffer {rest_kf}
+    weight bind rxid 0 nrep 1 -
+        lambda @lambda@
+  quit
+  read parm file -
+"paramstd.dat" -
+  noprint
+  energy rest domain cmdist kdist {cmkf} dist0 {cmdist0} toldist {cmtol} -
+      read file "cmrestraint.dat"
+  energy parm dielectric 1 nodist -
+   listupdate 10 -
+    cutoff 12 hmass 5
+  energy rescutoff byatom all
+  zonecons auto
+  energy constraints bonds hydrogens
+QUIT
+
+if @n@ eq 1
+DYNAMICS
+  read restart coordinates formatted file "md-in.rst"
+  input target temperature @temperature@
+  input cntl initialize temperature at @temperature@
+QUIT
+endif
+
+if @n@ gt 1
+DYNAMICS
+  read restart coordinates and velocities formatted file "md-in.rst"
+QUIT
+endif
+
+
+DYNAMICS
+  input cntl nstep {nmd_eq} delt 0.0005
+  input cntl constant temperature langevin relax 0.25
+  input target temperature @temperature@
+  input cntl nprnt {nmd_eq}
+  input cntl tol 1.00000e-07
+  input cntl stop rotations
+  input cntl statistics off
+  run rrespa fast 8
+QUIT
+
+DYNAMICS
+  input cntl nstep {nmd} delt 0.0015
+  input cntl constant temperature langevin relax 1.0
+  input target temperature @temperature@
+  input cntl nprnt {nprnt}
+  input cntl tol 1.00000e-07
+  input cntl stop rotations
+  input cntl statistics off
+  run rrespa fast 4
+  write restart coordinates and velocities formatted file "md-out.rst"
+  write sql name species1 file "md-out1.dms"
+  write sql name species2 file "md-out2.dms"
+QUIT
+
+
+END
+"""
+
+
+
+
         self.input_slurm = """
 #!/bin/bash
 #SBATCH -p normal-mic       # Queue name
@@ -294,7 +375,42 @@ export LD_LIBRARY_PATH=$IMP_ROOT/lib/Linux-x86_64:$LD_LIBRARY_PATH
 $IMPACT_EXEC/main1m $1
 """
 
+	self.input_runimpact_boinc = """#!/bin/bash
+app="main1m"
+wdir=$1
+job=$2
+repl=$3
+cycle=$4
+cyclem1=`expr ${cycle} - 1`
 
+id=`cat /proc/sys/kernel/random/uuid`
+
+#main dms file, assume it has been staged in at setup time
+
+maindms1=${job}_rcpt.dms
+maindms2=${job}_lig.dms
+
+rest1=${job}_restdist.dat
+rest2=${job}_resttor.dat
+rest3=${job}_cmrestraint.dat
+
+inpfilesrc=${wdir}/${job}_${cycle}.inp
+inpfiledest=${job}_r${repl}_c${cycle}_${id}.inp
+
+rstfilesrc=${wdir}/${job}_${cyclem1}.rst
+rstfiledest=${job}_r${repl}_c${cyclem1}_${id}.rst
+
+echo "bin/stage_file_v2 $inpfilesrc $inpfiledest" >&2
+bin/stage_file_v2 $inpfilesrc $inpfiledest
+echo "bin/stage_file_v2  $rstfilesrc $rstfiledest" >&2
+bin/stage_file_v2 $rstfilesrc $rstfiledest
+
+wuname="${job}_r${repl}_c${cycle}_${id}"
+
+echo "bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_out  --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $main1dms2 $rstfiledest $rest1 $rest2 $rest3" >&2
+
+bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_out --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $maindms2 $rstfiledest $rest1 $rest2 $rest3
+"""
 #
 # Convert .mae files into .dms files with AGBNP2 parameters and internal atom indexes
 #
