@@ -533,14 +533,21 @@ bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/
         else:
             extfiles += ",%s" % required_files
         restart_file = "%s_0.rst" % self.jobname
+	restdist_file = "%s_restdist.dat" % self.jobname
+	resttor_file = "%s_resttor.dat" % self.jobname
         input_file = "%s.inp" % self.jobname
         extfiles = extfiles + ",%s,%s" % (restart_file,input_file)
+
         if re_type == 'BEDAMTEMPT':
             rcptfile =  self.jobname + '_rcpt_0' + '.dms'
             ligfile =  self.jobname + '_lig_0' + '.dms'
-            extfiles += ",%s,%s,%s" % (rcptfile,ligfile,self.restraint_file)
-        input += "ENGINE_INPUT_EXTFILES = '%s'\n" % extfiles
-        
+            if job_transport == 'SSH':
+		extfiles += ",%s,%s,%s" % (rcptfile,ligfile,self.restraint_file)
+	        input += "ENGINE_INPUT_EXTFILES = '%s'\n" % extfiles
+            if job_transport == 'BOINC':
+		extfiles += ",%s,%s,%s,%s,%s" % (self.recidxfile,self.ligidxfile,self.restraint_file,restdist_file,resttor_file)
+		input += "ENGINE_INPUT_EXTFILES = '%s'\n" % extfiles
+
         temperatures = self.keywords.get('TEMPERATURES')
         if temperatures is not None:
             input += "TEMPERATURES = '%s'\n" % temperatures
@@ -729,8 +736,9 @@ bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/
             msg = 'File does not exist: %s' % self.restraint_file
             self.exit(msg)
 
-        rest_kf = self.keywords.get('REST_RECEPTOR_KF')
-        if not rest_kf:
+        if self.keywords.get('REST RECEPTOR KF') is not None:
+	    rest_kf = self.keywords.get('REST_RECEPTOR_KF')
+        else:
             rest_kf = '0.6'
 
         nmd_eq = self.keywords.get('EQUILIBRATION_STEPS')
@@ -749,7 +757,10 @@ bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/
         rcptfile = self.jobname + "_rcpt_@nm1@.dms"
         ligfile = self.jobname + "_lig_@nm1@.dms"
 
-        input = self.input_remd.format(
+
+	#writes the input file based on job_transport(Added by Rajat K Pal) 
+	if job_transport == 'SSH':
+            input = self.input_remd.format(
             job_name = self.jobname,
             dms_rcpt_in = rcptfile, dms_lig_in = ligfile,
             umax0 = umax, rest_kf = rest_kf,
@@ -757,7 +768,15 @@ bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/
             nmd_eq = nmd_eq, 
             nmd = nmd_prod, nprnt = nprnt)
 
-        impact_input_file = self.jobname + ".inp"
+
+	if job_transport == 'BOINC':
+	    input = self.input_remd_boinc.format(
+            umax0 = umax, rest_kf = rest_kf,
+            cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm,
+            nmd_eq = nmd_eq,
+            nmd = nmd_prod, nprnt = nprnt)
+       
+	impact_input_file = self.jobname + ".inp"
 
         f = open(impact_input_file, "w")
         f.write(input)
@@ -788,11 +807,19 @@ bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/
                 input = self.input_runimpact_standard.format(
                     acd_impact_home = exec_directory,
                     subjob_cores = subjob_cores)
-            f = open('runimpact', "w")
-            f.write(input)
-            f.close
-            os.chmod('runimpact',0744)
 
+	#writes the runimpact script based on job_transport
+	if job_transport == 'BOINC':
+	    input = self.input_runimpact_boinc
+	
+
+        f = open('runimpact', "w")
+        f.write(input)
+        f.close
+        os.chmod('runimpact',0744)
+
+
+	    
         #this is the interactive version
         input = self.input_runimpact_interactive
         f = open('runimpact_i', "w")
