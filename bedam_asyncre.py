@@ -709,6 +709,7 @@ bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/
 # writes the Impact input file for AsyncRE production
 #
     def  writeRemdInputFile(self):
+	job_transport = self.keywords.get('JOB_TRANSPORT')
         if self.recidxfile is None:
             msg = "writeThermInputFile: Internal error: receptor structure file not found"
             self.exit(msg)
