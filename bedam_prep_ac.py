@@ -768,25 +768,26 @@ END
             self.exit(msg)
 
         rest_sql =  self.keywords.get('REST_RECEPTOR_SQL')
+        rest_kf = float(self.keywords.get('REST_RECEPTOR_KF'))
+        if not rest_kf:
+            rest_kf = float('0.6')
         if rest_sql is not None: 
             con = lite.connect(self.recidxfile)
-            recpt_cmd = "PRAGMA table_info(particle)";
-            columnExists = False; 
             with con:
                 cur = con.cursor()  
-                cur.execute(recpt_cmd)
+                cur.execute("CREATE TABLE IF NOT EXISTS posre_harm_term (p0 INTEGER PRIMARY KEY, x0 REAL, y0 REAL, z0 REAL, param INTEGER )")
+                cur.execute("CREATE TABLE IF NOT EXISTS posre_harm_param (id INTEGER PRIMARY KEY, fcx REAL, fcy REAL, fcz REAL)")
+                # Impact supports only one value of force constant
+                cur.execute("INSERT INTO posre_harm_param (fcx, fcy, fcz, id) VALUES (%f, %f, %f, 0)" % (rest_kf, rest_kf, rest_kf)) 
+                cur.execute("SELECT id, x, y, z FROM particle WHERE " + rest_sql)
                 rows = cur.fetchall()
                 for row in rows:
-                    if row[1] == "grp_buffer" : 
-                        columnExists = True
-                if not columnExists : 
-                    cur.execute("ALTER TABLE particle ADD COLUMN grp_buffer int DEFAULT(0);")
-                recpt_cmd = "SELECT id FROM particle WHERE " + rest_sql
-                cur.execute(recpt_cmd)
-                atoms = cur.fetchall()      
-                for iat in atoms:
-                    cur.execute("UPDATE particle SET grp_buffer=? WHERE Id=?", (2, iat[0]))
- 
+                    atom = row[0]
+                    x0 = row[1]
+                    y0 = row[2]
+                    z0 = row[3]
+                    cur.execute("INSERT INTO posre_harm_term (p0, x0, y0, z0, param) VALUES (%d, %f, %f, %f, 0)" % (atom, x0, y0, z0))
+
         froz_sql =  self.keywords.get('FROZ_RECEPTOR_SQL')
         if froz_sql is not None: 
             con = lite.connect(self.recidxfile)
