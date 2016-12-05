@@ -701,6 +701,14 @@ END
             cmry /= float(n)
             cmrz /= float(n)
 
+	#prints the center of mass in a .xyz file(Added by Rajat K Pal)
+	self.rcptxyzfile = self.jobname + '_rcpt.xyz'
+	f = open(self.rcptxyzfile, "w")
+	f.write("%d\n\n" % n)
+	f.write("R %f %f %f" % (cmrx,cmry,cmrz))
+	f.close()
+
+
         lig_cmd = "SELECT id,x,y,z,i_i_internal_atom_index FROM particle WHERE " + ligand_sql 
         con = lite.connect(self.ligidxfile)
         with con:
@@ -722,9 +730,17 @@ END
             cmly /= float(n)
             cmlz /= float(n)  
 
-        #computes and reports the distance btw CM's
+	#prints the center of mass in a .xyz file
+	self.ligxyzfile = self.jobname + '_lig.xyz'
+	f = open(self.ligxyzfile, "w")
+	f.write("L %f %f %f" % (cmlx,cmly,cmlz))
+	f.close()
+
+        #computes and reports the distance btw CM's and also print the CM s
         d = sqrt((cmlx - cmrx)*(cmlx - cmrx) + (cmly - cmry)*(cmly - cmry) + (cmlz - cmrz)*(cmlz - cmrz))
         print "CM-CM distance = %f" % d
+	print "receptor CM Coordinates = %f %f %f" % (cmrx,cmry,cmrz)
+	print "ligand CM Coordinates = %f %f %f" % (cmlx,cmly,cmlz)
 
         self.restraint_file = self.jobname + '_cmrestraint.dat'
         f = open(self.restraint_file,"w")

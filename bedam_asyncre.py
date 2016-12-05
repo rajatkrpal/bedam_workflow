@@ -458,6 +458,13 @@ bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/
         agbnp_cmd =  "$SCHRODINGER/run add_agbnp2.py " + lig_dms_file
         os.system(agbnp_cmd)
 
+
+	#add agbnp2 custom watersites to dms file if available (Added by Rajat K Pal)
+	if os.path.exists('watersite.param'):
+	    print "add custom watersites into receptor dms file"
+	    watersites_cmd = "python watersites.py " + rcpt_dms_file
+	    os.system(watersites_cmd)
+
         print "add internal atom indexes into dms files"
         impact_input_file =   self.jobname + '_idx' + '.inp'
         impact_output_file =  self.jobname + '_idx' + '.out'
