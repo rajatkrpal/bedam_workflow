@@ -28,8 +28,8 @@ if __name__ == '__main__':
     parser = cmdline.SingleDashOptionParser(usage)
     (options, args) = parser.parse_args(sys.argv[1:])
     
-    if len(args) != 1:
-        parser.error("Please specify ONE input file")
+    if len(args) != 2:
+        parser.error("usage= python bedam_asyncre_supermic.py <commandfile> <user>")
     
     commandFile = args[0]
 
@@ -61,8 +61,12 @@ if __name__ == '__main__':
     bedam.writeRemdInputFile()
     bedam.writeRunimpactFile()
 
+    username = args[1]
+    if not username:
+	username = ""
+
     #override for supermic
-    bedam.input_qsub = """    
+    input_qsub = """    
 #!/bin/bash
 #PBS -q workq
 #PBS -l nodes=1:ppn=20
@@ -77,7 +81,7 @@ cd $PBS_O_WORKDIR
 
 head -1 $PBS_NODEFILE > .qsub_nodes
 
-awk '{{ for(i=0;i<2;i++)print $1 ","i",4,Linux-x86_64,egallicc,/tmp" }}; {{ for(i=0;i<1;i++)print $1 ","i",2,Linux-x86_64,egallicc,/tmp" }}; {{ for(i=0;i<10;i++)print $1 "p-mic0,"i",24,Linux-mic,egallicc,/tmp" }}' < .qsub_nodes > nodefile
+awk '{{ for(i=0;i<2;i++)print $1 ","i",4,Linux-x86_64,{user},/tmp" }}; {{ for(i=0;i<1;i++)print $1 ","i",2,Linux-x86_64,{user},/tmp" }}; {{ for(i=0;i<10;i++)print $1 "p-mic0,"i",24,Linux-mic,{user},/tmp" }}' < .qsub_nodes > nodefile
 
 python ~/src/AsyncRE/bedamtempt_async_re.py {job_name}_asyncre.cntl >LOG &
 
@@ -85,7 +89,7 @@ cd ../{job_name}
 
 head -1 $PBS_NODEFILE > .qsub_nodes
 
-awk '{{ for(i=0;i<2;i++)print $1 ","i",4,Linux-x86_64,egallicc,/tmp" }}; {{ for(i=0;i<1;i++)print $1 ","i",2,Linux-x86_64,egallicc,/tmp" }}; {{ for(i=0;i<10;i++)print $1 "p-mic1,"i",24,Linux-mic,egallicc,/tmp" }}' < .qsub_nodes > nodefile
+awk '{{ for(i=0;i<2;i++)print $1 ","i",4,Linux-x86_64,{user},/tmp" }}; {{ for(i=0;i<1;i++)print $1 ","i",2,Linux-x86_64,{user},/tmp" }}; {{ for(i=0;i<10;i++)print $1 "p-mic1,"i",24,Linux-mic,{user},/tmp" }}' < .qsub_nodes > nodefile
 
 python ~/src/AsyncRE/bedamtempt_async_re.py {job_name}_asyncre.cntl >LOG &
 
@@ -93,6 +97,8 @@ wait
 
 """
 
+    bedam.input_qsub = input_qsub
+    bedam.nodefile_username = username
 
     bedam.writeQueueFiles()
 

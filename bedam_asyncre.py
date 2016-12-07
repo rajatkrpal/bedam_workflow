@@ -349,7 +349,7 @@ source ${{sdir}}/env/bin/activate
 
 cp $PBS_NODEFILE .qsub_nodes
 #1 core per replica
-awk '{{ for(i=0;i<1;i++)print $1 ","i",1,Linux-x86_64,,/tmp"}}' < .qsub_nodes > nodefile
+awk '{{ for(i=0;i<1;i++)print $1 ","i",1,Linux-x86_64,{user},/tmp"}}' < .qsub_nodes > nodefile
 
 python ~/src/async_re-0.3.2-alpha-multiarch/bedamtempt_async_re.py {job_name}_asyncre.cntl > LOG 2>&1
 """
@@ -529,8 +529,11 @@ bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/
                 if exec_directory is None:
                     msg = "writeCntlFile: multiarch ASyncRE requires EXEC_DIRECTORY"
                     self.exit(msg)
-                input += "EXEC_DIRECTORY = '%s'\n" % exec_directory
-
+                
+		input += "EXEC_DIRECTORY = '%s'\n" % exec_directory
+	
+		    
+		
         input += "RE_SETUP = 'YES'\n"
 
         extfiles = self.keywords.get('ENGINE_INPUT_EXTFILES')
@@ -845,7 +848,11 @@ bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/
         f.write(input)
         f.close
 
-        input = self.input_qsub.format(job_name = self.jobname)
+        try:
+	    username = self.nodefile_username
+	except:
+            username = ""
+	input = self.input_qsub.format(user = username, job_name = self.jobname)
         qsub_file = self.jobname + '.qsub'
         f = open(qsub_file, "w")
         f.write(input)
