@@ -249,8 +249,8 @@ SETMODEL
   setpotential
     mmechanics nb12softcore umax {umax0} consolv agbnp2
     weight constraints buffer {rest_kf}
-    weight bind rxid 0 nrep 1 -
-        lambda @lambda@
+    weight bind rxid 0 nrep 1 lambda -
+ @lambda@
   quit
   read parm file -
 "paramstd.dat" -
@@ -407,9 +407,9 @@ bin/stage_file_v2 $rstfilesrc $rstfiledest
 
 wuname="${job}_r${repl}_c${cycle}_${id}"
 
-echo "bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_out  --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $main1dms2 $rstfiledest $rest1 $rest2 $rest3" >&2
+echo "bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_1_out  --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $main1dms2 $rstfiledest $rest1 $rest2 $rest3" >&2
 
-bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_out --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $maindms2 $rstfiledest $rest1 $rest2 $rest3
+bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_1_out --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $maindms2 $rstfiledest $rest1 $rest2 $rest3
 """
 #
 # Convert .mae files into .dms files with AGBNP2 parameters and internal atom indexes
