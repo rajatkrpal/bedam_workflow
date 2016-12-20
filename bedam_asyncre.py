@@ -326,8 +326,7 @@ echo "Number of tasks: $SLURM_NTASKS"
 echo "Tasks per node: $SLURM_TASKS_PER_NODE"
 
 scontrol show hostname $SLURM_NODELIST > .slurm_nodes
-awk '{{ for(i=0;i<4;i++)print $1 ","i",4,Linux-x86_64,,/tmp"}}; {{ for(i=0;i<10;i++
-)print $1"-mic0,"i",24,Linux-mic,,/tmp"}}; ' < .slurm_nodes > nodefile
+awk '{{ for(i=0;i<4;i++)print $1 ","i",4,Linux-x86_64,{user},/tmp"}}; {{ for(i=0;i<10;i++)print $1"-mic0,"i",24,Linux-mic,{user},/tmp"}}; ' < .slurm_nodes > nodefile
 
 python ~/src/async_re-0.3.2-alpha-multiarch/bedamtempt_async_re.py {job_name}_asyncre.cntl > LOG 2>&1
 """
@@ -842,7 +841,11 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
 # writes sample submission scripts for slurm (stampede) and PBS
 #
     def writeQueueFiles(self):
-        input = self.input_slurm.format(job_name = self.jobname)
+	try:
+	    username = self.nodefile_username
+	except:
+	    username = ""
+        input = self.input_slurm.format(user = username, job_name = self.jobname)
         slurm_file = self.jobname + '.slurm'
         f = open(slurm_file, "w")
         f.write(input)
