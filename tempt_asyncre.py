@@ -305,6 +305,12 @@ $IMPACT_EXEC/main1m $1
         agbnp_cmd =  "$SCHRODINGER/run add_agbnp2.py " + dms_file
         os.system(agbnp_cmd)
 
+	#add agbnp2 custom watersites to dms file if available(Added by Rajat K Pal)
+	if os.path.exists('watersite.param'):
+	    print "add custom wateristes into receptor dms file"
+	    watersites_cmd = "python watersites.py " + dms_file
+	    os.system(watersites_cmd)
+
         print "add internal atom indexes into dms files"
 #        acd_impact_source =  self.keywords.get('ACADEMIC_IMPACT_EVN')
 #        if not acd_impact_source:
