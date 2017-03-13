@@ -177,7 +177,7 @@ QUIT
 SETMODEL
   setpotential
     mmechanics nb12softcore umax {umax0} consolv agbnp2
-    weight constraints buffer {rest_kf}
+    weight constraints buffer {rest_kf} halfwidth {halfwidth}
     weight bind rxid 0 nrep 1 lambda -
 @lambda@
   quit
@@ -751,6 +751,11 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         else:
             rest_kf = '0.6'
 
+        if self.keywords.get('HALFWIDTH') is not None:
+            hw= self.keywords.get('HALFWIDTH')
+        else:
+            hw = '0.0'
+
         nmd_eq = self.keywords.get('EQUILIBRATION_STEPS')
         if not nmd_eq:
             msg = "bedam_prep: Number of equilibration steps not specified"
@@ -773,7 +778,7 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             input = self.input_remd.format(
             job_name = self.jobname,
             dms_rcpt_in = rcptfile, dms_lig_in = ligfile,
-            umax0 = umax, rest_kf = rest_kf,
+            umax0 = umax, rest_kf = rest_kf, halfwidth = hw,
             cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
             nmd_eq = nmd_eq, 
             nmd = nmd_prod, nprnt = nprnt)
@@ -782,7 +787,7 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
 	if job_transport == 'BOINC':
 	    input = self.input_remd_boinc.format(
             umax0 = umax, rest_kf = rest_kf,
-            cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm,
+            cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, halfwidth = hw,
             nmd_eq = nmd_eq,
             nmd = nmd_prod, nprnt = nprnt)
        
