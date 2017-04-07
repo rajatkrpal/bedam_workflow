@@ -66,7 +66,8 @@ if __name__ == '__main__':
 	username = ""
 
     #override for supermic
-    input_qsub = """    #!/bin/bash
+    input_qsub = """
+#!/bin/bash
 #PBS -q workq
 #PBS -l nodes=1:ppn=20
 #PBS -N {job_name}
