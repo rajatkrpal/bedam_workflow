@@ -107,7 +107,7 @@ QUIT
 
 SETMODEL
   setpotential
-    mmechanics consolv agbnp2
+    mmechanics consolv agbnp2 {agbnp2_options}
   quit
   read parm file -
 "paramstd.dat" -
@@ -176,7 +176,7 @@ QUIT
 
 SETMODEL
   setpotential
-    mmechanics nb12softcore umax {umax0} consolv agbnp2
+    mmechanics nb12softcore umax {umax0} consolv agbnp2 {agbnp2_options}
     weight constraints buffer {rest_kf}
     weight bind rxid 0 nrep 1 lambda -
 @lambda@
@@ -247,7 +247,7 @@ QUIT
 
 SETMODEL
   setpotential
-    mmechanics nb12softcore umax {umax0} consolv agbnp2
+    mmechanics nb12softcore umax {umax0} consolv agbnp2 {agbnp2_options}
     weight constraints buffer {rest_kf}
     weight bind rxid 0 nrep 1 lambda -
  @lambda@
@@ -684,6 +684,12 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         temperature =  self.keywords.get('TEMPERATURE')
         if not temperature:
             temperature = '300.0'
+        
+        agbnp2_opts = ""
+        ionic_strength =  self.keywords.get('IONSTRENGTH')
+        if ionic_strength:
+            agbnp2_opts += "ionstrength %f" % float(ionic_strength)
+
         impact_input_file =   self.jobname + '_mintherm' + '.inp'
         impact_output_file =  self.jobname + '_mintherm' + '.out'
         impact_jobtitle =     self.jobname + '_mintherm'
@@ -700,7 +706,8 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             temperature = temperature,
             rst_file_out = out_restart_file,
             dms_rcpt_out =  out_rcpt_structure_file,
-            dms_lig_out = out_lig_structure_file)
+            dms_lig_out = out_lig_structure_file,
+            agbnp2_options = agbnp2_opts)
 
         f = open(impact_input_file, "w")
         f.write(input)
@@ -763,6 +770,11 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         if not nprnt:
             msg = "Number of printing frequency not specified"
             self.exit(msg)
+        
+        agbnp2_opts = ""
+        ionic_strength =  self.keywords.get('IONSTRENGTH')
+        if ionic_strength:
+            agbnp2_opts += "ionstrength %f" % float(ionic_strength)
 
         rcptfile = self.jobname + "_rcpt_@nm1@.dms"
         ligfile = self.jobname + "_lig_@nm1@.dms"
@@ -776,7 +788,8 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             umax0 = umax, rest_kf = rest_kf,
             cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
             nmd_eq = nmd_eq, 
-            nmd = nmd_prod, nprnt = nprnt)
+            nmd = nmd_prod, nprnt = nprnt,
+            agbnp2_options = agbnp2_opts)
 
 
 	if job_transport == 'BOINC':
@@ -784,7 +797,8 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             umax0 = umax, rest_kf = rest_kf,
             cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm,
             nmd_eq = nmd_eq,
-            nmd = nmd_prod, nprnt = nprnt)
+            nmd = nmd_prod, nprnt = nprnt,
+            agbnp2_options = agbnp2_opts)
        
 	impact_input_file = self.jobname + ".inp"
 
