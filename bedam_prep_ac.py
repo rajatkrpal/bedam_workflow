@@ -768,9 +768,11 @@ END
             self.exit(msg)
 
         rest_sql =  self.keywords.get('REST_RECEPTOR_SQL')
-        rest_kf = float(self.keywords.get('REST_RECEPTOR_KF'))
-        if not rest_kf:
+        if self.keywords.get('REST_RECEPTOR_KF') is not None:
+            rest_kf = float(self.keywords.get('REST_RECEPTOR_KF'))
+        else:
             rest_kf = float('0.6')
+
         if rest_sql is not None: 
             con = lite.connect(self.recidxfile)
             with con:

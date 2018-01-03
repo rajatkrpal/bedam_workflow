@@ -107,7 +107,7 @@ QUIT
 
 SETMODEL
   setpotential
-    mmechanics consolv agbnp2
+    mmechanics consolv agbnp2 {agbnp2_options}
     weight constraints buffer {rest_kf} halfwidth {halfwidth}
   quit
   read parm file -
@@ -177,7 +177,7 @@ QUIT
 
 SETMODEL
   setpotential
-    mmechanics nb12softcore umax {umax0} consolv agbnp2
+    mmechanics nb12softcore umax {umax0} consolv agbnp2 {agbnp2_options}
     weight constraints buffer {rest_kf} halfwidth {halfwidth}
     weight bind rxid 0 nrep 1 lambda -
 @lambda@
@@ -248,7 +248,7 @@ QUIT
 
 SETMODEL
   setpotential
-    mmechanics nb12softcore umax {umax0} consolv agbnp2
+    mmechanics nb12softcore umax {umax0} consolv agbnp2 {agbnp2_options}
     weight constraints buffer {rest_kf} halfwidth {halfwidth}
     weight bind rxid 0 nrep 1 lambda -
  @lambda@
@@ -268,18 +268,10 @@ QUIT
 
 if @n@ eq 1
 DYNAMICS
-  read restart coordinates formatted file "md-in.rst"
   input target temperature @temperature@
   input cntl initialize temperature at @temperature@
 QUIT
 endif
-
-if @n@ gt 1
-DYNAMICS
-  read restart coordinates and velocities formatted file "md-in.rst"
-QUIT
-endif
-
 
 DYNAMICS
   input cntl nstep {nmd_eq} delt 0.0005
@@ -304,6 +296,126 @@ DYNAMICS
   write restart coordinates and velocities formatted file "md-out.rst"
   write sql name species1 file "md-out1.dms"
   write sql name species2 file "md-out2.dms"
+QUIT
+
+
+END
+"""
+
+
+        self.input_noneq_boinc = """
+write file -
+"md.out" -
+      title -
+"md" *
+
+CREATE
+  build primary name species1 type auto read sqldb file -
+"md-in1.dms"
+  build primary name species2 type auto read sqldb file -
+"md-in2.dms"
+QUIT
+
+SETMODEL
+  setpotential
+    mmechanics nb12softcore umax {umax0} consolv agbnp2 {agbnp2_options}
+    weight constraints buffer {rest_kf}
+    weight bind rxid 0 nrep 1 lambda 0.0
+  quit
+  read parm file -
+"paramstd.dat" -
+  noprint
+  energy rest domain cmdist kdist {cmkf} dist0 {cmdist0} toldist {cmtol} -
+      read file "cmrestraint.dat"
+  energy parm dielectric 1 nodist -
+   listupdate 10 -
+    cutoff 12 hmass 5
+  energy rescutoff byatom all
+  zonecons auto
+  energy constraints bonds hydrogens
+QUIT
+
+if @n@ eq 1
+DYNAMICS
+  input target temperature {temperature}
+  input cntl initialize temperature at {temperature}
+QUIT
+endif
+
+!non-equilibrium ramping of lambda
+DYNAMICS
+  input cntl nstep {nmd} delt 0.001
+  input cntl constant temperature langevin relax 1.0
+  input target temperature {temperature}
+  input cntl nprnt {nprnt}
+  input cntl tol 1.00000e-07
+  input cntl stop rotations
+  input cntl statistics off
+  input cntl slowgrowth lambdapower {noneq_lambdapower} totalsteps {noneq_totalsteps} startstep @startstep@
+  run rrespa fast 4
+  write restart coordinates and velocities formatted file "md-out.rst"
+  write sql name species1 file "md-out1.dms"
+  write sql name species2 file "md-out2.dms"
+QUIT
+
+
+END
+"""
+
+
+        self.input_noneq = """
+write file -
+"{job_name}_@n@.out" -
+      title -
+"{job_name}" *
+
+CREATE
+  build primary name species1 type auto read sqldb file -
+"{dms_rcpt_in}"
+  build primary name species2 type auto read sqldb file -
+"{dms_lig_in}"
+QUIT
+
+SETMODEL
+  setpotential
+    mmechanics nb12softcore umax {umax0} consolv agbnp2 {agbnp2_options}
+    weight constraints buffer {rest_kf}
+    weight bind rxid 0 nrep 1 lambda 0.0
+  quit
+  read parm file -
+"paramstd.dat" -
+  noprint
+  energy rest domain cmdist kdist {cmkf} dist0 {cmdist0} toldist {cmtol} -
+      read file "{cmrestraints_file}"
+  energy parm dielectric 1 nodist -
+   listupdate 10 -
+    cutoff 12 hmass 5
+  energy rescutoff byatom all
+  zonecons auto
+  energy constraints bonds hydrogens
+QUIT
+
+if @n@ eq 1
+DYNAMICS
+  input target temperature {temperature}
+  input cntl initialize temperature at {temperature}
+QUIT
+endif
+
+!non-equilibrium ramping of lambda
+DYNAMICS
+  input cntl nstep {nmd} delt 0.001
+  input cntl constant temperature langevin relax 1.0
+  input target temperature {temperature}
+  input cntl nprnt {nprnt}
+  input cntl tol 1.00000e-07
+  input cntl stop rotations
+  input cntl statistics off
+  input cntl slowgrowth lambdapower {noneq_lambdapower} totalsteps {noneq_totalsteps} startstep @startstep@
+  run rrespa fast 4
+  write restart coordinates and velocities formatted file "{job_name}_@n@.rst"
+  write sql file "{job_name}_rcpt_@n@.dms" name species1
+  write sql file "{job_name}_lig_@n@.dms" name species2
 QUIT
 
 
@@ -385,10 +497,19 @@ cyclem1=`expr ${cycle} - 1`
 
 id=`cat /proc/sys/kernel/random/uuid`
 
-#main dms file, assume it has been staged in at setup time
+#dms files from previous cycle
 
-maindms1=${job}_rcpt.dms
-maindms2=${job}_lig.dms
+maindms1src=${wdir}/${job}_rcpt_${cyclem1}.dms
+maindms1dest=${job}_rcpt_r${repl}_c${cyclem1}_${id}.dms
+
+echo "bin/stage_file_v2 $maindms1src $maindms1dest" >&2
+bin/stage_file_v2 $maindms1src $maindms1dest
+
+maindms2src=${wdir}/${job}_lig_${cyclem1}.dms
+maindms2dest=${job}_lig_r${repl}_c${cyclem1}_${id}.dms
+
+echo "bin/stage_file_v2 $maindms2src $maindms2dest" >&2
+bin/stage_file_v2 $maindms2src $maindms2dest
 
 rest1=${job}_restdist.dat
 rest2=${job}_resttor.dat
@@ -407,9 +528,9 @@ bin/stage_file_v2 $rstfilesrc $rstfiledest
 
 wuname="${job}_r${repl}_c${cycle}_${id}"
 
-echo "bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_1_out  --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $main1dms2 $rstfiledest $rest1 $rest2 $rest3" >&2
+echo "bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_1_out  --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1dest $main1dms2dest $rstfiledest $rest1 $rest2 $rest3" >&2
 
-bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_1_out --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $maindms2 $rstfiledest $rest1 $rest2 $rest3
+bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_1_out --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1dest $maindms2dest $rstfiledest $rest1 $rest2 $rest3
 """
 #
 # Convert .mae files into .dms files with AGBNP2 parameters and internal atom indexes
@@ -510,8 +631,8 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         if re_type is None:
             msg = "writeCntlFile: RE_TYPE is not specified"
             self.exit(msg)
-        if not (re_type == 'TEMPT' or re_type == 'BEDAMTEMPT'):
-            msg = "writeCntlFile: invalid RE_TYPE. Choose one of 'TEMPT', 'BEDAMTEMPT'."
+        if not (re_type == 'TEMPT' or re_type == 'BEDAMTEMPT' or re_type == 'BEDAMNONEQ'):
+            msg = "writeCntlFile: invalid RE_TYPE. Choose one of 'TEMPT', 'BEDAMTEMPT', 'BEDAMNONEQ'."
             self.exit(msg)
         input += "RE_TYPE = '%s'\n" % re_type
 
@@ -548,15 +669,31 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         input_file = "%s.inp" % self.jobname
         extfiles = extfiles + ",%s,%s" % (restart_file,input_file)
 
-        if re_type == 'BEDAMTEMPT':
+        if re_type == 'BEDAMTEMPT' or re_type == 'BEDAMNONEQ':
             rcptfile =  self.jobname + '_rcpt_0' + '.dms'
             ligfile =  self.jobname + '_lig_0' + '.dms'
             if job_transport == 'SSH':
 		extfiles += ",%s,%s,%s" % (rcptfile,ligfile,self.restraint_file)
-	        input += "ENGINE_INPUT_EXTFILES = '%s'\n" % extfiles
             if job_transport == 'BOINC':
-		extfiles += ",%s,%s,%s,%s,%s" % (self.recidxfile,self.ligidxfile,self.restraint_file,restdist_file,resttor_file)
-		input += "ENGINE_INPUT_EXTFILES = '%s'\n" % extfiles
+		extfiles += ",%s,%s,%s,%s,%s" % (rcptfile,ligfile,self.restraint_file,restdist_file,resttor_file)
+            input += "ENGINE_INPUT_EXTFILES = '%s'\n" % extfiles
+
+        if re_type == 'BEDAMNONEQ':
+            #self.nreplicas is from 'NREPLICAS' parsed by main class
+            nreplicas = self.keywords.get('NREPLICAS')
+            if not nreplicas:
+                msg = "NREPLICAS is required"
+                self.exit(msg)
+            input += "NREPLICAS = %d\n" % int(nreplicas)
+
+            noneq_nchunks = self.keywords.get('NONEQ_NCHUNKS')
+            if noneq_nchunks:
+                noneq_nchunks = int(noneq_nchunks)
+            else:
+                noneq_nchunks = 1
+            input += "NONEQ_NCHUNKS = %d\n" % noneq_nchunks
+            nmd_prod = int(self.keywords.get('PRODUCTION_STEPS'))
+            input += "NONEQ_REPLSTEPS = %d\n" % nmd_prod
 
         temperatures = self.keywords.get('TEMPERATURES')
         if temperatures is not None:
@@ -696,6 +833,11 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         else:
             hw = '0.0'
 
+        agbnp2_opts = ""
+        ionic_strength =  self.keywords.get('IONSTRENGTH')
+        if ionic_strength:
+            agbnp2_opts += "ionstrength %f" % float(ionic_strength)
+
         impact_input_file =   self.jobname + '_mintherm' + '.inp'
         impact_output_file =  self.jobname + '_mintherm' + '.out'
         impact_jobtitle =     self.jobname + '_mintherm'
@@ -712,7 +854,8 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             temperature = temperature, rest_kf = rest_kf, halfwidth = hw,
             rst_file_out = out_restart_file,
             dms_rcpt_out =  out_rcpt_structure_file,
-            dms_lig_out = out_lig_structure_file)
+            dms_lig_out = out_lig_structure_file,
+            agbnp2_options = agbnp2_opts)
 
         f = open(impact_input_file, "w")
         f.write(input)
@@ -780,12 +923,35 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         if not nprnt:
             msg = "Number of printing frequency not specified"
             self.exit(msg)
+        
+        agbnp2_opts = ""
+        ionic_strength =  self.keywords.get('IONSTRENGTH')
+        if ionic_strength:
+            agbnp2_opts += "ionstrength %f" % float(ionic_strength)
+
+        re_type = self.keywords.get('RE_TYPE')
+        if re_type == 'BEDAMNONEQ':
+            lambdapower = self.keywords.get('NONEQ_LAMBDA_POWER')
+            if lambdapower:
+                noneq_lambdapower = int(lambdapower)
+            else:
+                noneq_lambdapower = 3
+            noneq_nchunks = self.keywords.get('NONEQ_NCHUNKS')
+            if noneq_nchunks:
+                noneq_nchunks = int(noneq_nchunks)
+            else:
+                noneq_nchunks = 1
+            noneq_totalsteps = noneq_nchunks*int(nmd_prod)
+            temperature =  self.keywords.get('TEMPERATURE')
+            if not temperature:
+                temperature = '300.0'
+
 
         rcptfile = self.jobname + "_rcpt_@nm1@.dms"
         ligfile = self.jobname + "_lig_@nm1@.dms"
 
 
-	#writes the input file based on job_transport(Added by Rajat K Pal) 
+	#writes the input file based on job_transport 
 	if job_transport == 'SSH':
             input = self.input_remd.format(
             job_name = self.jobname,
@@ -795,13 +961,45 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             nmd_eq = nmd_eq, 
             nmd = nmd_prod, nprnt = nprnt)
 
+            if re_type == 'BEDAMNONEQ':
+                input = self.input_noneq.format(
+                    job_name = self.jobname,
+                    dms_rcpt_in = rcptfile, dms_lig_in = ligfile,
+                    umax0 = umax, rest_kf = rest_kf, halfwidth = hw,
+                    cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
+                    nmd_eq = nmd_eq, 
+                    nmd = nmd_prod, nprnt = nprnt,
+                    agbnp2_options = agbnp2_opts, temperature = temperature,
+                    noneq_lambdapower = noneq_lambdapower, noneq_totalsteps = noneq_totalsteps)
+            else:
+                input = self.input_remd.format(
+                    job_name = self.jobname,
+                    dms_rcpt_in = rcptfile, dms_lig_in = ligfile,
+                    umax0 = umax, rest_kf = rest_kf, halfwidth = hw,
+                    cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
+                    nmd_eq = nmd_eq, 
+                    nmd = nmd_prod, nprnt = nprnt,
+                    agbnp2_options = agbnp2_opts)
+
 
 	if job_transport == 'BOINC':
-	    input = self.input_remd_boinc.format(
-            umax0 = umax, rest_kf = rest_kf,
-            cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, halfwidth = hw,
-            nmd_eq = nmd_eq,
-            nmd = nmd_prod, nprnt = nprnt)
+
+            if re_type == 'BEDAMNONEQ':
+                input = self.input_noneq_boinc.format(
+                    umax0 = umax, rest_kf = rest_kf, halfwidth =hw,
+                    cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm,
+                    nmd_eq = nmd_eq,
+                    nmd = nmd_prod, nprnt = nprnt,
+                    agbnp2_options = agbnp2_opts, temperature = temperature,
+                    noneq_lambdapower = noneq_lambdapower, noneq_totalsteps = noneq_totalsteps)
+            else:
+                input = self.input_remd_boinc.format(
+                    umax0 = umax, rest_kf = rest_kf, halfwidth =hw,
+                    cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm,
+                    nmd_eq = nmd_eq,
+                    nmd = nmd_prod, nprnt = nprnt,
+                    agbnp2_options = agbnp2_opts)
+
        
 	impact_input_file = self.jobname + ".inp"
 
