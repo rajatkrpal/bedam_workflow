@@ -108,7 +108,6 @@ QUIT
 SETMODEL
   setpotential
     mmechanics consolv agbnp2
-    weight constraints buffer {rest_kf} halfwidth {halfwidth}
   quit
   read parm file -
 "paramstd.dat" -
@@ -178,7 +177,7 @@ QUIT
 SETMODEL
   setpotential
     mmechanics nb12softcore umax {umax0} consolv agbnp2
-    weight constraints buffer {rest_kf} halfwidth {halfwidth}
+    weight constraints buffer {rest_kf}
     weight bind rxid 0 nrep 1 lambda -
 @lambda@
   quit
@@ -249,9 +248,9 @@ QUIT
 SETMODEL
   setpotential
     mmechanics nb12softcore umax {umax0} consolv agbnp2
-    weight constraints buffer {rest_kf} halfwidth {halfwidth}
-    weight bind rxid 0 nrep 1 lambda -
- @lambda@
+    weight constraints buffer {rest_kf}
+    weight bind rxid 0 nrep 1 -
+        lambda @lambda@
   quit
   read parm file -
 "paramstd.dat" -
@@ -327,7 +326,8 @@ echo "Number of tasks: $SLURM_NTASKS"
 echo "Tasks per node: $SLURM_TASKS_PER_NODE"
 
 scontrol show hostname $SLURM_NODELIST > .slurm_nodes
-awk '{{ for(i=0;i<4;i++)print $1 ","i",4,Linux-x86_64,{user},/tmp"}}; {{ for(i=0;i<10;i++)print $1"-mic0,"i",24,Linux-mic,{user},/tmp"}}; ' < .slurm_nodes > nodefile
+awk '{{ for(i=0;i<4;i++)print $1 ","i",4,Linux-x86_64,,/tmp"}}; {{ for(i=0;i<10;i++
+)print $1"-mic0,"i",24,Linux-mic,,/tmp"}}; ' < .slurm_nodes > nodefile
 
 python ~/src/async_re-0.3.2-alpha-multiarch/bedamtempt_async_re.py {job_name}_asyncre.cntl > LOG 2>&1
 """
@@ -349,7 +349,7 @@ source ${{sdir}}/env/bin/activate
 
 cp $PBS_NODEFILE .qsub_nodes
 #1 core per replica
-awk '{{ for(i=0;i<1;i++)print $1 ","i",1,Linux-x86_64,{user},/tmp"}}' < .qsub_nodes > nodefile
+awk '{{ for(i=0;i<1;i++)print $1 ","i",1,Linux-x86_64,,/tmp"}}' < .qsub_nodes > nodefile
 
 python ~/src/async_re-0.3.2-alpha-multiarch/bedamtempt_async_re.py {job_name}_asyncre.cntl > LOG 2>&1
 """
@@ -407,9 +407,9 @@ bin/stage_file_v2 $rstfilesrc $rstfiledest
 
 wuname="${job}_r${repl}_c${cycle}_${id}"
 
-echo "bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_1_out  --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $main1dms2 $rstfiledest $rest1 $rest2 $rest3" >&2
+echo "bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_out  --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $main1dms2 $rstfiledest $rest1 $rest2 $rest3" >&2
 
-bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_1_out --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $maindms2 $rstfiledest $rest1 $rest2 $rest3
+bin/create_work_v2 --appname main1m --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_out --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1 $maindms2 $rstfiledest $rest1 $rest2 $rest3
 """
 #
 # Convert .mae files into .dms files with AGBNP2 parameters and internal atom indexes
@@ -523,13 +523,15 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         input += "ENGINE_INPUT_BASENAME = '%s'\n" % self.jobname
 
         if job_transport == 'SSH':
+	    platform = self.keywords.get('PLATFORM')
             multiarch = self.keywords.get('MULTIARCH')
             if (multiarch == "YES" or multiarch =="yes"):
                 exec_directory =  self.keywords.get('EXEC_DIRECTORY')
                 if exec_directory is None:
                     msg = "writeCntlFile: multiarch ASyncRE requires EXEC_DIRECTORY"
                     self.exit(msg)
-                
+                if platform == 'SUPERMIC':
+		    exec_directory = "/home/<USER>/academic-impact-70500"
 		input += "EXEC_DIRECTORY = '%s'\n" % exec_directory
 	
 		    
@@ -685,17 +687,6 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         temperature =  self.keywords.get('TEMPERATURE')
         if not temperature:
             temperature = '300.0'
-
-        if self.keywords.get('REST_RECEPTOR_KF') is not None:
-	    rest_kf = self.keywords.get('REST_RECEPTOR_KF')
-        else:
-            rest_kf = '0.6'
-
-        if self.keywords.get('HALFWIDTH') is not None:
-            hw= self.keywords.get('HALFWIDTH')
-        else:
-            hw = '0.0'
-
         impact_input_file =   self.jobname + '_mintherm' + '.inp'
         impact_output_file =  self.jobname + '_mintherm' + '.out'
         impact_jobtitle =     self.jobname + '_mintherm'
@@ -709,7 +700,7 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             out_file = impact_output_file, title = impact_jobtitle,
             dms_rcpt_in = self.recidxfile, dms_lig_in = self.ligidxfile,
             cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
-            temperature = temperature, rest_kf = rest_kf, halfwidth = hw,
+            temperature = temperature,
             rst_file_out = out_restart_file,
             dms_rcpt_out =  out_rcpt_structure_file,
             dms_lig_out = out_lig_structure_file)
@@ -758,15 +749,10 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             msg = 'File does not exist: %s' % self.restraint_file
             self.exit(msg)
 
-        if self.keywords.get('REST_RECEPTOR_KF') is not None:
+        if self.keywords.get('REST RECEPTOR KF') is not None:
 	    rest_kf = self.keywords.get('REST_RECEPTOR_KF')
         else:
             rest_kf = '0.6'
-
-        if self.keywords.get('HALFWIDTH') is not None:
-            hw= self.keywords.get('HALFWIDTH')
-        else:
-            hw = '0.0'
 
         nmd_eq = self.keywords.get('EQUILIBRATION_STEPS')
         if not nmd_eq:
@@ -790,7 +776,7 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             input = self.input_remd.format(
             job_name = self.jobname,
             dms_rcpt_in = rcptfile, dms_lig_in = ligfile,
-            umax0 = umax, rest_kf = rest_kf, halfwidth = hw,
+            umax0 = umax, rest_kf = rest_kf,
             cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
             nmd_eq = nmd_eq, 
             nmd = nmd_prod, nprnt = nprnt)
@@ -799,7 +785,7 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
 	if job_transport == 'BOINC':
 	    input = self.input_remd_boinc.format(
             umax0 = umax, rest_kf = rest_kf,
-            cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, halfwidth = hw,
+            cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm,
             nmd_eq = nmd_eq,
             nmd = nmd_prod, nprnt = nprnt)
        
@@ -858,21 +844,13 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
 # writes sample submission scripts for slurm (stampede) and PBS
 #
     def writeQueueFiles(self):
-	try:
-	    username = self.nodefile_username
-	except:
-	    username = ""
-        input = self.input_slurm.format(user = username, job_name = self.jobname)
+        input = self.input_slurm.format(job_name = self.jobname)
         slurm_file = self.jobname + '.slurm'
         f = open(slurm_file, "w")
         f.write(input)
         f.close
 
-        try:
-	    username = self.nodefile_username
-	except:
-            username = ""
-	input = self.input_qsub.format(user = username, job_name = self.jobname)
+        input = self.input_qsub.format(job_name = self.jobname)
         qsub_file = self.jobname + '.qsub'
         f = open(qsub_file, "w")
         f.write(input)

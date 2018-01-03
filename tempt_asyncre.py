@@ -103,6 +103,7 @@ QUIT
 SETMODEL
   setpotential
     mmechanics consolv agbnp2
+    weight constraints buffer {rest_kf} halfwidth {halfwidth}
   quit
   read parm file -
 "paramstd.dat" -
@@ -167,7 +168,7 @@ QUIT
 SETMODEL
   setpotential
     mmechanics consolv agbnp2
-    weight constraints buffer {rest_kf}
+    weight constraints buffer {rest_kf} halfwidth {halfwidth}
   quit
   read parm file -
 "paramstd.dat" -
@@ -218,8 +219,8 @@ echo "Number of tasks: $SLURM_NTASKS"
 echo "Tasks per node: $SLURM_TASKS_PER_NODE"
 
 scontrol show hostname $SLURM_NODELIST > .slurm_nodes
-awk '{{ for(i=0;i<4;i++)print $1 ","i",4,Linux-x86_64,,/tmp"}}; {{ for(i=0;i<10;i++
-)print $1"-mic0,"i",24,Linux-mic,,/tmp"}}; ' < .slurm_nodes > nodefile
+awk '{{ for(i=0;i<4;i++)print $1 ","i",4,Linux-x86_64,{user},/tmp"}}; {{ for(i=0;i<10;i++
+)print $1"-mic0,"i",24,Linux-mic,{user},/tmp"}}; ' < .slurm_nodes > nodefile
 
 python ~/src/async_re-0.3.2-alpha-multiarch/tempt_async_re.py {job_name}_asyncre.cntl > LOG 2>&1
 """
@@ -241,7 +242,7 @@ source ${{sdir}}/env/bin/activate
 
 cp $PBS_NODEFILE .qsub_nodes
 #1 core per replica
-awk '{{ for(i=0;i<1;i++)print $1 ","i",1,Linux-x86_64,,/tmp"}}' < .qsub_nodes > nodefile
+awk '{{ for(i=0;i<1;i++)print $1 ","i",1,Linux-x86_64,{user},/tmp"}}' < .qsub_nodes > nodefile
 
 python ~/src/async_re-0.3.2-alpha-multiarch/tempt_async_re.py {job_name}_asyncre.cntl > LOG 2>&1
 """
@@ -307,7 +308,7 @@ $IMPACT_EXEC/main1m $1
 
 	#add agbnp2 custom watersites to dms file if available(Added by Rajat K Pal)
 	if os.path.exists('watersite.param'):
-	    print "add custom wateristes into receptor dms file"
+	    print "add custom watersites into receptor dms file"
 	    watersites_cmd = "python watersites.py " + dms_file
 	    os.system(watersites_cmd)
 
@@ -523,6 +524,16 @@ $IMPACT_EXEC/main1m $1
             msg = 'File does not exist: %s' % self.idxfile
             self.exit(msg)
 
+        if self.keywords.get('REST_KF') is not None:
+            rest_kf = self.keywords.get('REST_KF')
+        else:
+            rest_kf = '0.6'
+
+        if self.keywords.get('HALFWIDTH') is not None:
+            hw= self.keywords.get('HALFWIDTH')
+        else:
+            hw = '0.0'
+
         temperature =  self.keywords.get('TEMPERATURE')
         if not temperature:
             temperature = '300.0'
@@ -534,7 +545,7 @@ $IMPACT_EXEC/main1m $1
             job_name = self.jobname,
             out_file = impact_output_file, title = impact_jobtitle,
             dms_in = self.idxfile, 
-            temperature = temperature)
+            temperature = temperature, rest_kf = rest_kf, halfwidth = hw)
 
         f = open(impact_input_file, "w")
         f.write(input)
@@ -551,9 +562,15 @@ $IMPACT_EXEC/main1m $1
             msg = 'File does not exist: %s' % self.recidxfile
             self.exit(msg)
 
-        rest_kf = self.keywords.get('REST_KF')
-        if not rest_kf:
+        if self.keywords.get('REST_KF') is not None:
+            rest_kf = self.keywords.get('REST_KF')
+        else:
             rest_kf = '0.6'
+
+        if self.keywords.get('HALFWIDTH') is not None:
+            hw= self.keywords.get('HALFWIDTH')
+        else:
+            hw = '0.0'
 
         nmd = self.keywords.get('PRODUCTION_STEPS')
         if not nmd:
@@ -568,7 +585,7 @@ $IMPACT_EXEC/main1m $1
 
         input = self.input_remd.format(
             job_name = self.jobname,
-            rest_kf = rest_kf,
+            rest_kf = rest_kf, halfwidth = hw,
             nmd = nmd, nprnt = nprnt)
 
         impact_input_file = self.jobname + ".inp"
@@ -605,13 +622,28 @@ $IMPACT_EXEC/main1m $1
 # writes sample submission scripts for slurm (stampede) and PBS
 #
     def writeQueueFiles(self):
-        input = self.input_slurm.format(job_name = self.jobname)
+        
+        try:
+	   username = self.nodefile_username
+        except:
+	   username = ""
+
+           
+        input = self.input_slurm.format(user = username, job_name = self.jobname)
         slurm_file = self.jobname + '.slurm'
+        #print "%s" % input
         f = open(slurm_file, "w")
         f.write(input)
         f.close
+        
+        
 
-        input = self.input_qsub.format(job_name = self.jobname)
+        try:
+	   username = self.nodefile_username
+        except:
+	   username = ""
+
+        input = self.input_qsub.format(user = username, job_name = self.jobname)
         qsub_file = self.jobname + '.qsub'
         f = open(qsub_file, "w")
         f.write(input)
@@ -658,6 +690,7 @@ if __name__ == '__main__':
     tempt.writeThermInputFile()    
     tempt.writeRemdInputFile()
     tempt.writeRunimpactFile()
+    print "Write the submission scripts for SuperMIC and Stampede"
     tempt.writeQueueFiles()
 
     print

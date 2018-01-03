@@ -68,8 +68,7 @@ if __name__ == '__main__':
         username = ""
 
     #override for stampede
-    input_slurm = """
-#!/bin/bash
+    input_slurm = """#!/bin/bash
 #SBATCH -p normal-mic       # Queue name
 #SBATCH -N 1                # This is nodes, not cores (16 cores/node)
 #SBATCH -n 1                # one process per node so we get one entry per node
