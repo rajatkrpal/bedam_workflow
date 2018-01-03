@@ -81,7 +81,7 @@ head -1 $PBS_NODEFILE > .qsub_nodes
 
 awk '{{ for(i=0;i<2;i++)print $1 ","i",4,Linux-x86_64,{user},/tmp" }}; {{ for(i=0;i<1;i++)print $1 ","i",2,Linux-x86_64,{user},/tmp" }}; {{ for(i=0;i<10;i++)print $1 "p-mic0,"i",24,Linux-mic,{user},/tmp" }}' < .qsub_nodes > nodefile
 
-python ~/src/AsyncRE/bedamtempt_async_re.py {job_name}_asyncre.cntl >LOG &
+python ~/src/AsyncRE/tempt_async_re.py {job_name}_asyncre.cntl >LOG &
 
 cd ../{job_name}
 
