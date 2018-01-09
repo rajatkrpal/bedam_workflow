@@ -953,14 +953,6 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
 
 	#writes the input file based on job_transport 
 	if job_transport == 'SSH':
-            input = self.input_remd.format(
-            job_name = self.jobname,
-            dms_rcpt_in = rcptfile, dms_lig_in = ligfile,
-            umax0 = umax, rest_kf = rest_kf, halfwidth = hw,
-            cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
-            nmd_eq = nmd_eq, 
-            nmd = nmd_prod, nprnt = nprnt)
-
             if re_type == 'BEDAMNONEQ':
                 input = self.input_noneq.format(
                     job_name = self.jobname,
@@ -978,8 +970,7 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
                     umax0 = umax, rest_kf = rest_kf, halfwidth = hw,
                     cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
                     nmd_eq = nmd_eq, 
-                    nmd = nmd_prod, nprnt = nprnt,
-                    agbnp2_options = agbnp2_opts)
+                    nmd = nmd_prod, nprnt = nprnt, agbnp2_options = agbnp2_opts)
 
 
 	if job_transport == 'BOINC':
