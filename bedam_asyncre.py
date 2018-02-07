@@ -425,8 +425,7 @@ END
 
 
 
-        self.input_slurm = """
-#!/bin/bash
+        self.input_slurm = """#!/bin/bash
 #SBATCH -p normal-mic       # Queue name
 #SBATCH -N 6                # This is nodes, not cores (16 cores/node)
 #SBATCH -n 6                # one process per node so we get one entry per node
@@ -445,8 +444,7 @@ python ~/src/async_re-0.3.2-alpha-multiarch/bedamtempt_async_re.py {job_name}_as
 """
 
 
-        self.input_qsub = """
-#!/bin/bash
+        self.input_qsub = """#!/bin/bash
 #PBS -q production
 #PBS -l select=64:ncpus=1
 #PBS -N {job_name}
