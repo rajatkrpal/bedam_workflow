@@ -1,4 +1,7 @@
-		        BEDAM WORKFLOW  (v1.0)
+[![Github All Releases](https://img.shields.io/github/downloads/rajatkrpal/bedam_workflow/total.svg)]()
+
+
+			BEDAM WORKFLOW  (v1.0)
 		    =============================
 
 		Emilio Gallicchio, emilio.gallicchio@gmail.com
