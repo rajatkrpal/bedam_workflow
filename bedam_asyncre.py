@@ -544,6 +544,15 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         if not os.path.exists(receptor_file):
             msg = 'File does not exist: %s' % receptor_file
             self.exit(msg)
+        is_dms = re.compile(".*\.dms")
+        if re.match(is_dms, receptor_file):
+            #assume rcpt is already prepared in dms format with AGBNP2 parameters
+            print("Receptor is a dms file. Skipping receptor conversion and AGBNP2 preparation.")
+            do_rcpt = False
+        else:
+            do_rcpt = True
+
+            
         ligand_file =  self.keywords.get('LIGAND_FILE')
         if not ligand_file:
             msg = "bedam_prep: No ligand file specified in the input file"
@@ -551,8 +560,9 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         if not os.path.exists(ligand_file):
             msg = 'File does not exist: %s' % ligand_file
             self.exit(msg)
-
+            
         print "Convert maegz files to cms files "
+        sys.stdout.flush()
         desmond_builder_file = 'des_builder.msj'
         rcpt_cms_file = self.jobname + '_rcpt.cms'
         lig_cms_file = self.jobname + '_lig.cms'
@@ -561,24 +571,38 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         f.write(input)
         f.close()
         rcpt_cmd = '$SCHRODINGER/utilities/multisim' + ' -JOBNAME ' + self.jobname + ' -m ' + desmond_builder_file + ' ' + receptor_file + ' -o ' + rcpt_cms_file + ' -HOST localhost -maxjob 1 -WAIT'
-        lig_cmd =  '$SCHRODINGER/utilities/multisim' + ' -JOBNAME ' + self.jobname + ' -m ' + desmond_builder_file + ' ' + ligand_file + ' -o ' + lig_cms_file + ' -HOST localhost -maxjob 1 -WAIT' 
-        cms_cmd = rcpt_cmd + ";" + lig_cmd 
-        os.system(cms_cmd)
+        lig_cmd =  '$SCHRODINGER/utilities/multisim' + ' -JOBNAME ' + self.jobname + ' -m ' + desmond_builder_file + ' ' + ligand_file + ' -o ' + lig_cms_file + ' -HOST localhost -maxjob 1 -WAIT'
+        if do_rcpt:
+            os.system(rcpt_cmd)
+        os.system(lig_cmd)
 
         print "Convert cms files to dms files"
+        sys.stdout.flush()
         rcpt_dms_file = self.jobname + '_rcpt.dms'
         lig_dms_file = self.jobname + '_lig.dms'
 	rcpt_cmd = '$SCHRODINGER/run -FROM desmond mae2dms ' + rcpt_cms_file + ' ' + rcpt_dms_file
         lig_cmd = '$SCHRODINGER/run -FROM desmond mae2dms ' + lig_cms_file + ' ' + lig_dms_file
-        dms_cmd = rcpt_cmd + ";" + lig_cmd
-        os.system(dms_cmd)
+        if do_rcpt:
+            os.system(rcpt_cmd)
+        os.system(lig_cmd)
 
-        print "add agbnp parameters into dms files"
-        agbnp_cmd =  "$SCHRODINGER/run add_agbnp2.py " + rcpt_dms_file
-        os.system(agbnp_cmd)
-        agbnp_cmd =  "$SCHRODINGER/run add_agbnp2.py " + lig_dms_file
-        os.system(agbnp_cmd)
+        if os.path.exists('add_agbnp2.py'):
+            print "add agbnp parameters into dms files"
+            sys.stdout.flush()
+            agbnp_cmd =  "$SCHRODINGER/run add_agbnp2.py " + rcpt_dms_file
+            if do_rcpt:
+                os.system(agbnp_cmd)
+            agbnp_cmd =  "$SCHRODINGER/run add_agbnp2.py " + lig_dms_file
+            os.system(agbnp_cmd)
 
+        if os.path.exists('add_hct.py'):
+            print "add hct parameters into dms files"
+            sys.stdout.flush()
+            hct_cmd =  "$SCHRODINGER/run add_hct.py " + rcpt_dms_file
+            if do_rcpt:
+                os.system(hct_cmd)
+            hct_cmd =  "$SCHRODINGER/run add_hct.py " + lig_dms_file
+            os.system(hct_cmd)
 
 	#add agbnp2 custom watersites to dms file if available (Added by Rajat K Pal)
 	if os.path.exists('watersite.param'):
@@ -587,6 +611,7 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
 	    os.system(watersites_cmd)
 
         print "add internal atom indexes into dms files"
+        sys.stdout.flush()
         impact_input_file =   self.jobname + '_idx' + '.inp'
         impact_output_file =  self.jobname + '_idx' + '.out'
         impact_jobtitle =     self.jobname + '_idx'

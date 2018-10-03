@@ -473,9 +473,11 @@ $IMPACT_EXEC/main1m $1
             self.exit(msg)
 
         rest_sql =  self.keywords.get('REST_SQL')
-        rest_kf = float(self.keywords.get('REST_KF'))
+        rest_kf = self.keywords.get('REST_KF')
         if not rest_kf:
             rest_kf = float('0.6')
+        else:
+            rest_kf = float(self.keywords.get('REST_KF'))
         if rest_sql is not None: 
             con = lite.connect(self.idxfile)
             with con:
