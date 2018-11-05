@@ -1,4 +1,5 @@
 # bedam python class
+# torsional, angle and distance constraints file are added to input file for only the ssh jobs
 __doc__="""
 $Revision: 0.1 $
 
