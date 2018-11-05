@@ -115,6 +115,9 @@ SETMODEL
   noprint
   energy rest domain cmdist kdist {cmkf} dist0 {cmdist0} toldist {cmtol} -
       read file "{cmrestraints_file}"
+  {distance_restraint_command}
+  {angle_restraint_command}
+  {torsion_restraint_command}
   energy parm dielectric 1 nodist -
    listupdate 10 -
     cutoff 12 hmass 5
@@ -187,6 +190,9 @@ SETMODEL
   noprint
   energy rest domain cmdist kdist {cmkf} dist0 {cmdist0} toldist {cmtol} -
       read file "{cmrestraints_file}"
+  {distance_restraint_command}
+  {angle_restraint_command}
+  {torsion_restraint_command}
   energy parm dielectric 1 nodist -
    listupdate 10 -
     cutoff 12 hmass 5
@@ -845,6 +851,23 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         out_rcpt_structure_file =  self.jobname + '_rcpt_0' + '.dms'
         out_lig_structure_file =  self.jobname + '_lig_0' + '.dms'
 
+
+        dist_rest_file = self.jobname + "_restdist.dat"
+        angle_rest_file = self.jobname + "_restangle.dat"
+        torsion_rest_file = self.jobname + "_resttor.dat"
+        
+        dist_rest_command = ""
+        if os.path.exists(dist_rest_file):
+            dist_rest_command = 'energy rest dist read file "' + dist_rest_file + '"';
+
+        angle_rest_command = ""
+        if os.path.exists(angle_rest_file):
+            angle_rest_command = 'energy rest angle read file "' + angle_rest_file + '"';
+
+        torsion_rest_command = ""
+        if os.path.exists(torsion_rest_file):
+            torsion_rest_command = 'energy rest torsions read file "' + torsion_rest_file + '"';
+        
         input = self.input_mintherm.format(
             out_file = impact_output_file, title = impact_jobtitle,
             dms_rcpt_in = self.recidxfile, dms_lig_in = self.ligidxfile,
@@ -853,7 +876,11 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             rst_file_out = out_restart_file,
             dms_rcpt_out =  out_rcpt_structure_file,
             dms_lig_out = out_lig_structure_file,
-            agbnp2_options = agbnp2_opts)
+            agbnp2_options = agbnp2_opts,
+            distance_restraint_command = dist_rest_command,
+            angle_restraint_command = angle_rest_command,
+            torsion_restraint_command = torsion_rest_command)
+
 
         f = open(impact_input_file, "w")
         f.write(input)
@@ -949,6 +976,22 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         ligfile = self.jobname + "_lig_@nm1@.dms"
 
 
+        dist_rest_file = self.jobname + "_restdist.dat"
+        angle_rest_file = self.jobname + "_restangle.dat"
+        torsion_rest_file = self.jobname + "_resttor.dat"
+        
+        dist_rest_command = ""
+        if os.path.exists(dist_rest_file):
+            dist_rest_command = 'energy rest dist read file "' + dist_rest_file + '"';
+
+        angle_rest_command = ""
+        if os.path.exists(angle_rest_file):
+            angle_rest_command = 'energy rest angle read file "' + angle_rest_file + '"';
+
+        torsion_rest_command = ""
+        if os.path.exists(torsion_rest_file):
+            torsion_rest_command = 'energy rest torsions read file "' + torsion_rest_file + '"';
+            
 	#writes the input file based on job_transport 
 	if job_transport == 'SSH':
             if re_type == 'BEDAMNONEQ':
@@ -968,7 +1011,10 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
                     umax0 = umax, rest_kf = rest_kf, halfwidth = hw,
                     cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
                     nmd_eq = nmd_eq, 
-                    nmd = nmd_prod, nprnt = nprnt, agbnp2_options = agbnp2_opts)
+                    nmd = nmd_prod, nprnt = nprnt, agbnp2_options = agbnp2_opts,
+                    distance_restraint_command = dist_rest_command,
+                    angle_restraint_command = angle_rest_command,
+                    torsion_restraint_command = torsion_rest_command)
 
 
 	if job_transport == 'BOINC':
