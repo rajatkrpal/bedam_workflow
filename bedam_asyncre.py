@@ -1,4 +1,5 @@
 # bedam python class
+# torsional, angle and distance constraints file are added to input file for only the ssh jobs
 __doc__="""
 $Revision: 0.1 $
 
@@ -115,6 +116,9 @@ SETMODEL
   noprint
   energy rest domain cmdist kdist {cmkf} dist0 {cmdist0} toldist {cmtol} -
       read file "{cmrestraints_file}"
+  {distance_restraint_command}
+  {angle_restraint_command}
+  {torsion_restraint_command}
   energy parm dielectric 1 nodist -
    listupdate 10 -
     cutoff 12 hmass 5
@@ -187,6 +191,9 @@ SETMODEL
   noprint
   energy rest domain cmdist kdist {cmkf} dist0 {cmdist0} toldist {cmtol} -
       read file "{cmrestraints_file}"
+  {distance_restraint_command}
+  {angle_restraint_command}
+  {torsion_restraint_command}
   energy parm dielectric 1 nodist -
    listupdate 10 -
     cutoff 12 hmass 5
@@ -425,8 +432,7 @@ END
 
 
 
-        self.input_slurm = """
-#!/bin/bash
+        self.input_slurm = """#!/bin/bash
 #SBATCH -p normal-mic       # Queue name
 #SBATCH -N 6                # This is nodes, not cores (16 cores/node)
 #SBATCH -n 6                # one process per node so we get one entry per node
@@ -445,8 +451,7 @@ python ~/src/async_re-0.3.2-alpha-multiarch/bedamtempt_async_re.py {job_name}_as
 """
 
 
-        self.input_qsub = """
-#!/bin/bash
+        self.input_qsub = """#!/bin/bash
 #PBS -q production
 #PBS -l select=64:ncpus=1
 #PBS -N {job_name}
@@ -532,6 +537,11 @@ echo "bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template temp
 
 bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/main1md_in --result_template templates/main1md_1_out --rsc_fpops_est 36000e9  --rsc_fpops_bound 36000e11 $inpfiledest paramstd.dat agbnp2.param $maindms1dest $maindms2dest $rstfiledest $rest1 $rest2 $rest3
 """
+
+        self.input_runimpact_condor= """#!/bin/bash
+./main1m-Linux-x86_64-static $1
+"""
+        
 #
 # Convert .mae files into .dms files with AGBNP2 parameters and internal atom indexes
 #
@@ -647,7 +657,7 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         if job_transport is None:
             msg = "writeCntlFile: JOB_TRANSPORT is not specified"
             self.exit(msg)
-        if not (job_transport == "SSH" or job_transport == "BOINC"):
+        if not (job_transport == "SSH" or job_transport == "BOINC" or job_transport == "CONDOR"):
             msg = "writeCntlFile: invalid JOB_TRANSPORT: %s Choose one of 'SSH', 'BOINC'." % job_transport
             self.exit(msg)
         input += "JOB_TRANSPORT = '%s'\n" % job_transport
@@ -668,7 +678,7 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
 
         input += "ENGINE_INPUT_BASENAME = '%s'\n" % self.jobname
 
-        if job_transport == 'SSH':
+        if job_transport == 'SSH' or job_transport == 'CONDOR':
             multiarch = self.keywords.get('MULTIARCH')
             if (multiarch == "YES" or multiarch =="yes"):
                 exec_directory =  self.keywords.get('EXEC_DIRECTORY')
@@ -688,19 +698,34 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             extfiles = required_files
         else:
             extfiles += ",%s" % required_files
+
+        if job_transport == 'CONDOR':
+            exec_app = "main1m-Linux-x86_64-static"
+            extfiles += ",%s" % exec_app
+                
         restart_file = "%s_0.rst" % self.jobname
 	restdist_file = "%s_restdist.dat" % self.jobname
 	resttor_file = "%s_resttor.dat" % self.jobname
+        restangle_file = "%s_restangle.dat" % self.jobname
+        
         input_file = "%s.inp" % self.jobname
         extfiles = extfiles + ",%s,%s" % (restart_file,input_file)
 
         if re_type == 'BEDAMTEMPT' or re_type == 'BEDAMNONEQ':
             rcptfile =  self.jobname + '_rcpt_0' + '.dms'
             ligfile =  self.jobname + '_lig_0' + '.dms'
-            if job_transport == 'SSH':
+            extfiles += ",%s,%s,%s" % (rcptfile,ligfile,self.restraint_file)
+            if os.path.exists(restdist_file):
+                extfiles += ",%s" % restdist_file
+            if os.path.exists(resttor_file):
+                extfiles += ",%s" % resttor_file
+            if os.path.exists(restangle_file):
+                extfiles += ",%s" % restangle_file
+            
+            """if job_transport == 'SSH':
 		extfiles += ",%s,%s,%s" % (rcptfile,ligfile,self.restraint_file)
             if job_transport == 'BOINC':
-		extfiles += ",%s,%s,%s,%s,%s" % (rcptfile,ligfile,self.restraint_file,restdist_file,resttor_file)
+		extfiles += ",%s,%s,%s,%s,%s" % (rcptfile,ligfile,self.restraint_file,restdist_file,resttor_file)"""
             input += "ENGINE_INPUT_EXTFILES = '%s'\n" % extfiles
 
         if re_type == 'BEDAMNONEQ':
@@ -751,7 +776,7 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             if subjob_cores is not None:
                 input += "SUBJOB_CORES = %d\n" % int(subjob_cores)
 
-        if job_transport == 'BOINC':
+        if job_transport == 'BOINC' or job_transport == 'CONDOR':
             total_cores = self.keywords.get('TOTAL_CORES')
             if total_cores is None:
                 msg = "writeCntlFile: TOTAL_CORES is required"
@@ -872,6 +897,23 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         out_rcpt_structure_file =  self.jobname + '_rcpt_0' + '.dms'
         out_lig_structure_file =  self.jobname + '_lig_0' + '.dms'
 
+
+        dist_rest_file = self.jobname + "_restdist.dat"
+        angle_rest_file = self.jobname + "_restangle.dat"
+        torsion_rest_file = self.jobname + "_resttor.dat"
+        
+        dist_rest_command = ""
+        if os.path.exists(dist_rest_file):
+            dist_rest_command = 'energy rest dist read file "' + dist_rest_file + '"';
+
+        angle_rest_command = ""
+        if os.path.exists(angle_rest_file):
+            angle_rest_command = 'energy rest angle read file "' + angle_rest_file + '"';
+
+        torsion_rest_command = ""
+        if os.path.exists(torsion_rest_file):
+            torsion_rest_command = 'energy rest torsions read file "' + torsion_rest_file + '"';
+        
         input = self.input_mintherm.format(
             out_file = impact_output_file, title = impact_jobtitle,
             dms_rcpt_in = self.recidxfile, dms_lig_in = self.ligidxfile,
@@ -880,7 +922,11 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
             rst_file_out = out_restart_file,
             dms_rcpt_out =  out_rcpt_structure_file,
             dms_lig_out = out_lig_structure_file,
-            agbnp2_options = agbnp2_opts)
+            agbnp2_options = agbnp2_opts,
+            distance_restraint_command = dist_rest_command,
+            angle_restraint_command = angle_rest_command,
+            torsion_restraint_command = torsion_rest_command)
+
 
         f = open(impact_input_file, "w")
         f.write(input)
@@ -976,8 +1022,24 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
         ligfile = self.jobname + "_lig_@nm1@.dms"
 
 
+        dist_rest_file = self.jobname + "_restdist.dat"
+        angle_rest_file = self.jobname + "_restangle.dat"
+        torsion_rest_file = self.jobname + "_resttor.dat"
+        
+        dist_rest_command = ""
+        if os.path.exists(dist_rest_file):
+            dist_rest_command = 'energy rest dist read file "' + dist_rest_file + '"';
+
+        angle_rest_command = ""
+        if os.path.exists(angle_rest_file):
+            angle_rest_command = 'energy rest angle read file "' + angle_rest_file + '"';
+
+        torsion_rest_command = ""
+        if os.path.exists(torsion_rest_file):
+            torsion_rest_command = 'energy rest torsions read file "' + torsion_rest_file + '"';
+            
 	#writes the input file based on job_transport 
-	if job_transport == 'SSH':
+	if job_transport == 'SSH' or job_transport == 'CONDOR':
             if re_type == 'BEDAMNONEQ':
                 input = self.input_noneq.format(
                     job_name = self.jobname,
@@ -995,7 +1057,10 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
                     umax0 = umax, rest_kf = rest_kf, halfwidth = hw,
                     cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm, cmrestraints_file = self.restraint_file,
                     nmd_eq = nmd_eq, 
-                    nmd = nmd_prod, nprnt = nprnt, agbnp2_options = agbnp2_opts)
+                    nmd = nmd_prod, nprnt = nprnt, agbnp2_options = agbnp2_opts,
+                    distance_restraint_command = dist_rest_command,
+                    angle_restraint_command = angle_rest_command,
+                    torsion_restraint_command = torsion_rest_command)
 
 
 	if job_transport == 'BOINC':
@@ -1014,7 +1079,10 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
                     cmkf = kfcm, cmdist0 = d0cm, cmtol = tolcm,
                     nmd_eq = nmd_eq,
                     nmd = nmd_prod, nprnt = nprnt,
-                    agbnp2_options = agbnp2_opts)
+                    agbnp2_options = agbnp2_opts,
+                    distance_restraint_command = dist_rest_command,
+                    angle_restraint_command = angle_rest_command,
+                    torsion_restraint_command = torsion_rest_command)
 
        
 	impact_input_file = self.jobname + ".inp"
@@ -1052,7 +1120,8 @@ bin/create_work_v2 --appname ${app} --wu_name "$wuname" --wu_template templates/
 	#writes the runimpact script based on job_transport
 	if job_transport == 'BOINC':
 	    input = self.input_runimpact_boinc
-	
+        if job_transport == 'CONDOR':
+            input = self.input_runimpact_condor
 
         f = open('runimpact', "w")
         f.write(input)
